@@ -915,6 +915,7 @@ class Prophet(object):
         # Identify components to be plotted
         components = [('plot_trend', True),
                       ('plot_holidays', self.holidays is not None),
+                      ('plot_daily', 'daily' in fcst),
                       ('plot_weekly', 'weekly' in fcst),
                       ('plot_yearly', 'yearly' in fcst)]
         components = [(plot, cond) for plot, cond in components if cond]
@@ -996,6 +997,44 @@ class Prophet(object):
         ax.grid(True, which='major', c='gray', ls='-', lw=1, alpha=0.2)
         ax.set_xlabel('ds')
         ax.set_ylabel('holidays')
+        return artists
+
+    def plot_daily(self, fcst, ax=None, uncertainty=True):
+        """Plot the daily component of the forecast.
+
+        Parameters
+        ----------
+        fcst: pd.DataFrame output of self.predict.
+        ax: Optional matplotlib Axes to plot on. One will be created if this
+            is not provided.
+        uncertainty: Optional boolean to plot uncertainty intervals.
+
+        Returns
+        -------
+        a list of matplotlib artists
+        """
+        artists = []
+        if not ax:
+            fig = plt.figure(facecolor='w', figsize=(10, 6))
+            ax = fig.add_subplot(111)
+        df_s = fcst.copy()
+        df_s['hod'] = df_s['ds'].dt.hour
+        df_s = df_s.groupby('hod').first()
+        hours = np.arange(24)
+        y_daily = [df_s.loc[d]['daily'] for d in hours]
+        y_daily_l = [df_s.loc[d]['daily_lower'] for d in hours]
+        y_daily_u = [df_s.loc[d]['daily_upper'] for d in hours]
+        artists += ax.plot(range(len(hours)), y_daily, ls='-',
+                           c='#0072B2')
+        if uncertainty:
+            artists += [ax.fill_between(range(len(hours)),
+                                        y_daily_l, y_daily_u,
+                                        color='#0072B2', alpha=0.2)]
+        ax.grid(True, which='major', c='gray', ls='-', lw=1, alpha=0.2)
+        ax.set_xticks(range(len(hours)))
+        ax.set_xticklabels(hours)
+        ax.set_xlabel('Hour of day')
+        ax.set_ylabel('daily')
         return artists
 
     def plot_weekly(self, fcst, ax=None, uncertainty=True):
